@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(open \"file:///Users/Corn/Library/CloudStorage/Dropbox/work/Claude_Project/pomodoro/index.html\")",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(git config *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  }
+}

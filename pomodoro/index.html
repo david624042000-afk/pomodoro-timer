@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>番茄工作法计时器 - Pomodoro Timer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 450px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .session-label {
+            color: #999;
+            font-size: 1.1em;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .timer-display {
+            font-size: 5em;
+            font-weight: bold;
+            color: #667eea;
+            font-family: 'Monaco', monospace;
+            margin: 30px 0;
+            line-height: 1;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #d0d0d0;
+        }
+
+        .btn-settings {
+            background: #f0f0f0;
+            color: #667eea;
+            font-size: 0.9em;
+            padding: 8px 15px;
+        }
+
+        .btn-settings:hover {
+            background: #e8e8e8;
+        }
+
+        .stats {
+            background: #f5f5f5;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            color: #667eea;
+            font-weight: bold;
+            font-size: 1.3em;
+        }
+
+        .streak {
+            font-size: 2em;
+            margin: 5px 0;
+        }
+
+        /* Settings Panel */
+        .settings-panel {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .settings-panel.active {
+            display: flex;
+        }
+
+        .settings-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .settings-content h2 {
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 1.8em;
+        }
+
+        .settings-section {
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .settings-section h3 {
+            color: #667eea;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+        }
+
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .preset-btn {
+            padding: 12px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            color: #333;
+        }
+
+        .preset-btn:hover {
+            border-color: #667eea;
+            background: #f5f5ff;
+        }
+
+        .preset-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .custom-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .custom-input-group label {
+            color: #666;
+            font-weight: 600;
+            min-width: 100px;
+        }
+
+        .custom-input-group input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .custom-input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .settings-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .settings-actions button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-save {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-save:hover {
+            background: #5568d3;
+        }
+
+        .btn-cancel {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-cancel:hover {
+            background: #d0d0d0;
+        }
+
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #4caf50;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .notification.show {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍅 番茄工作法</h1>
+        <div class="session-label" id="sessionLabel">工作时间</div>
+        <div class="timer-display" id="timerDisplay">25:00</div>
+
+        <div class="controls">
+            <button class="btn-primary" id="startBtn" onclick="startTimer()">开始</button>
+            <button class="btn-secondary" id="pauseBtn" onclick="pauseTimer()" disabled>暂停</button>
+            <button class="btn-secondary" onclick="resetTimer()">重置</button>
+            <button class="btn-settings" onclick="openSettings()">⚙️ 设置</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">完成工作数</span>
+                <span class="stat-value" id="sessionsCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">今日连续 🔥</span>
+                <span class="stat-value streak" id="streakCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">今日专注时间</span>
+                <span class="stat-value" id="focusTimeCount">0h 0m</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-content">
+            <h2>⚙️ 计时设置</h2>
+
+            <div class="settings-section">
+                <h3>工作时间 (Work Duration)</h3>
+                <div class="preset-buttons" id="workPresets">
+                    <button class="preset-btn" onclick="setWorkPreset(15)">15 分钟</button>
+                    <button class="preset-btn active" onclick="setWorkPreset(25)">25 分钟</button>
+                    <button class="preset-btn" onclick="setWorkPreset(45)">45 分钟</button>
+                    <button class="preset-btn" onclick="setWorkPreset(60)">60 分钟</button>
+                </div>
+                <div class="custom-input-group">
+                    <label>自定义 (Custom):</label>
+                    <input type="number" id="customWorkInput" min="1" max="120" placeholder="输入分钟数" />
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>休息时间 (Break Duration)</h3>
+                <div class="preset-buttons" id="breakPresets">
+                    <button class="preset-btn" onclick="setBreakPreset(5)">5 分钟</button>
+                    <button class="preset-btn active" onclick="setBreakPreset(10)">10 分钟</button>
+                    <button class="preset-btn" onclick="setBreakPreset(15)">15 分钟</button>
+                    <button class="preset-btn" onclick="setBreakPreset(30)">30 分钟</button>
+                </div>
+                <div class="custom-input-group">
+                    <label>自定义 (Custom):</label>
+                    <input type="number" id="customBreakInput" min="1" max="60" placeholder="输入分钟数" />
+                </div>
+            </div>
+
+            <div class="settings-actions">
+                <button class="btn-save" onclick="saveSettings()">保存 (Save)</button>
+                <button class="btn-cancel" onclick="closeSettings()">取消 (Cancel)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        let workTime = 25 * 60;
+        let breakTime = 10 * 60;
+        let timeLeft = workTime;
+        let isRunning = false;
+        let isWorkSession = true;
+        let timerInterval = null;
+
+        let sessions = 0;
+        let focusMinutes = 0;
+
+        const timerDisplay = document.getElementById('timerDisplay');
+        const sessionLabel = document.getElementById('sessionLabel');
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const notification = document.getElementById('notification');
+        const settingsPanel = document.getElementById('settingsPanel');
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateDisplay() {
+            timerDisplay.textContent = formatTime(timeLeft);
+        }
+
+        function startTimer() {
+            if (isRunning) return;
+            isRunning = true;
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateDisplay();
+
+                if (timeLeft === 0) {
+                    completeSession();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            isRunning = false;
+            clearInterval(timerInterval);
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+        }
+
+        function resetTimer() {
+            isRunning = false;
+            clearInterval(timerInterval);
+            isWorkSession = true;
+            timeLeft = workTime;
+            sessionLabel.textContent = '工作时间';
+            sessionLabel.style.color = '#667eea';
+            updateDisplay();
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+        }
+
+        function completeSession() {
+            clearInterval(timerInterval);
+            isRunning = false;
+
+            if (isWorkSession) {
+                sessions++;
+                focusMinutes += Math.floor(workTime / 60);
+                updateStats();
+                showNotification('✨ 棒极了！休息一下吧。');
+
+                isWorkSession = false;
+                timeLeft = breakTime;
+                sessionLabel.textContent = '休息时间';
+                sessionLabel.style.color = '#4caf50';
+            } else {
+                showNotification('☕ 休息结束了！准备好下一个工作周期吗？');
+
+                isWorkSession = true;
+                timeLeft = workTime;
+                sessionLabel.textContent = '工作时间';
+                sessionLabel.style.color = '#667eea';
+            }
+
+            updateDisplay();
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+
+            playSound();
+        }
+
+        function updateStats() {
+            document.getElementById('sessionsCount').textContent = sessions;
+            document.getElementById('streakCount').textContent = sessions;
+
+            const hours = Math.floor(focusMinutes / 60);
+            const mins = focusMinutes % 60;
+            document.getElementById('focusTimeCount').textContent = `${hours}h ${mins}m`;
+        }
+
+        function showNotification(message) {
+            notification.textContent = message;
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 4000);
+        }
+
+        function playSound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+
+        // Settings Functions
+        function openSettings() {
+            settingsPanel.classList.add('active');
+        }
+
+        function closeSettings() {
+            settingsPanel.classList.remove('active');
+        }
+
+        function setWorkPreset(minutes) {
+            document.querySelectorAll('#workPresets .preset-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            document.getElementById('customWorkInput').value = '';
+        }
+
+        function setBreakPreset(minutes) {
+            document.querySelectorAll('#breakPresets .preset-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            document.getElementById('customBreakInput').value = '';
+        }
+
+        function saveSettings() {
+            let newWorkTime = workTime;
+            let newBreakTime = breakTime;
+
+            // Check custom work input
+            const customWork = document.getElementById('customWorkInput').value;
+            if (customWork) {
+                newWorkTime = parseInt(customWork) * 60;
+            } else {
+                // Get selected preset
+                const activeWorkBtn = document.querySelector('#workPresets .preset-btn.active');
+                if (activeWorkBtn) {
+                    const text = activeWorkBtn.textContent;
+                    const minutes = parseInt(text);
+                    newWorkTime = minutes * 60;
+                }
+            }
+
+            // Check custom break input
+            const customBreak = document.getElementById('customBreakInput').value;
+            if (customBreak) {
+                newBreakTime = parseInt(customBreak) * 60;
+            } else {
+                // Get selected preset
+                const activeBreakBtn = document.querySelector('#breakPresets .preset-btn.active');
+                if (activeBreakBtn) {
+                    const text = activeBreakBtn.textContent;
+                    const minutes = parseInt(text);
+                    newBreakTime = minutes * 60;
+                }
+            }
+
+            workTime = newWorkTime;
+            breakTime = newBreakTime;
+
+            resetTimer();
+            closeSettings();
+            showNotification('✅ 设置已保存！');
+        }
+
+        updateDisplay();
+    </script>
+</body>
+</html>
