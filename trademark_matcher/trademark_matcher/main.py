@@ -22,6 +22,7 @@ from .match import parse_input, match_all
 from .export import export_excel
 from .match import STATUS_EXACT, STATUS_NEAR, STATUS_MULTI, STATUS_MANUAL
 from .llm import STATUS_LLM, enrich_manual_results
+from .splitter import split_compound
 
 
 def _parse_classes(raw: str) -> list[int]:
@@ -44,7 +45,7 @@ def _ask_classes() -> list[int] | None:
     return classes
 
 
-def print_summary(results: list[dict]):
+def print_summary(results: list[dict], raw_term_count: int | None = None):
     counts: dict[str, int] = {}
     seen: set[str] = set()
     for r in results:
@@ -53,8 +54,11 @@ def print_summary(results: list[dict]):
             counts[r["status"]] = counts.get(r["status"], 0) + 1
 
     total = len(seen)
+    header = f"共 {raw_term_count} 項輸入（拆分後 {total} 個子項）" \
+        if raw_term_count and raw_term_count != total \
+        else f"共 {total} 項輸入"
     print(f"\n{'─'*52}")
-    print(f"  共 {total} 項輸入")
+    print(f"  {header}")
     for status in [STATUS_EXACT, STATUS_NEAR, STATUS_MULTI, STATUS_LLM, STATUS_MANUAL]:
         n = counts.get(status, 0)
         if n:
@@ -88,14 +92,34 @@ def run(
     token_idx = build_token_inverted_index(df)
     print(f"完成 ({time.time()-t0:.1f}s，共 {len(df):,} 筆)")
 
-    # ── Rule-based matching ─────────────────────────────────────────────────
-    terms = parse_input(raw_input)
-    print(f"輸入項目: {len(terms)} 項")
+    # ── Parse & expand compound terms ───────────────────────────────────────
+    raw_terms = parse_input(raw_input)
+    expanded: list[dict] = []   # {term, parent_en}
+    for t in raw_terms:
+        parts = split_compound(t)
+        if len(parts) > 1:
+            for p in parts:
+                expanded.append({"term": p, "parent_en": t})
+        else:
+            expanded.append({"term": t, "parent_en": None})
 
+    compound_count = sum(1 for e in expanded if e["parent_en"])
+    print(f"輸入項目: {len(raw_terms)} 項（含拆分後共 {len(expanded)} 個子項）"
+          if compound_count else f"輸入項目: {len(raw_terms)} 項")
+
+    # ── Rule-based matching ─────────────────────────────────────────────────
+    terms_only = [e["term"] for e in expanded]
     print("比對中...", end=" ", flush=True)
     t1 = time.time()
-    results = match_all(terms, index, token_idx)
+    flat = match_all(terms_only, index, token_idx)
     print(f"完成 ({time.time()-t1:.1f}s)")
+
+    # Attach parent_en / is_sub metadata to flat results
+    parent_map = {e["term"]: e["parent_en"] for e in expanded}
+    results = []
+    for r in flat:
+        parent = parent_map.get(r["input_en"])
+        results.append({**r, "is_sub": parent is not None, "parent_en": parent})
 
     # ── LLM second pass ────────────────────────────────────────────────────
     if use_llm:
@@ -106,7 +130,7 @@ def run(
         else:
             print("  無待手動項目，跳過 LLM 步驟。")
 
-    print_summary(results)
+    print_summary(results, raw_term_count=len(raw_terms))
 
     out_path = export_excel(results, output)
     print(f"輸出檔案: {out_path}")

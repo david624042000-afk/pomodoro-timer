@@ -196,3 +196,37 @@ def match_all(
                     "similarity_note": note if status != STATUS_EXACT else "100%",
                 })
     return rows
+
+
+def consolidate_results(flat_rows: list[dict]) -> list[dict]:
+    """
+    Collapse the flat one-row-per-candidate list into one-row-per-term,
+    with all candidates bundled under a `candidates` key.
+
+    Output schema per item:
+      input_en   : str
+      status     : str          (best status for the term)
+      candidates : list[dict]   each has code/chinese/db_english/note
+      is_sub     : bool         True when this was split from a compound
+      parent_en  : str | None   original compound text
+    """
+    from collections import OrderedDict
+    grouped: dict = OrderedDict()
+    for r in flat_rows:
+        term = r["input_en"]
+        if term not in grouped:
+            grouped[term] = {
+                "input_en": term,
+                "status": r["status"],
+                "candidates": [],
+                "is_sub": r.get("is_sub", False),
+                "parent_en": r.get("parent_en"),
+            }
+        if r.get("code"):
+            grouped[term]["candidates"].append({
+                "code":      r["code"],
+                "chinese":   r["chinese"],
+                "db_english": r["db_english"],
+                "note":      r["similarity_note"],
+            })
+    return list(grouped.values())
