@@ -1,5 +1,0 @@
-__pycache__/
-*.pyc
-trademark_matcher/_db_cache.csv
-trademark_matches_*.xlsx
-.env
